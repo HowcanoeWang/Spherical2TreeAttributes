@@ -9,38 +9,36 @@ class MainWindow(QMainWindow):
     def __init__(self, parent=None):
         super(MainWindow, self).__init__(parent)
 
-        self.setWindowTitle("Spherical Tree (Beta 0.1)")
+        self.setWindowTitle("Spherical2TreeAttributes (Beta 0.1)")
         self.resize(600, 800)
+        self.setWindowIcon(QIcon('./img/logo.png'))
 
-        #############
-        # UI Design #
-        #############
+        self.setupUI()
+        self.functionConnector()
 
+    def setupUI(self):
         # Menu Bar UI
-        menuBar = self.menuBar()
-        menuFile = menuBar.addMenu("File")
-        actionNew = menuFile.addAction(QIcon("./img/new.png"), "New")
-        actionOpen = menuFile.addAction(QIcon("./img/open.png"), "Open")
-        actionSave = menuFile.addAction(QIcon("./img/save.png"), "Save")
-        actionSaveAS = menuFile.addAction("Save As")
-        actionQuit = menuFile.addAction("Quit")
+        self.menu = self.menuBar()
+        self.menuFile = self.menu.addMenu("File")
+        self.actionNew = self.menuFile.addAction(QIcon("./img/new.png"), "New")
+        self.actionOpen = self.menuFile.addAction(QIcon("./img/open.png"), "Open")
+        self.actionSave = self.menuFile.addAction(QIcon("./img/save.png"), "Save")
+        self.actionSaveAS = self.menuFile.addAction("Save As")
+        self.actionQuit = self.menuFile.addAction("Quit")
 
         # Tool Bar UI
-        toolbar = self.addToolBar("File")
-        toolbar.addAction(actionNew)
-        toolbar.addAction(actionOpen)
-        toolbar.addAction(actionSave)
+        self.toolbar = self.addToolBar("File")
+        self.toolbar.addAction(self.actionNew)
+        self.toolbar.addAction(self.actionOpen)
+        self.toolbar.addAction(self.actionSave)
 
-        ####################
-        # Connect Function #
-        ####################
-        actionNew.setShortcut("Ctrl+N")
-        actionNew.triggered.connect(self.newProject)
-        actionOpen.setShortcut("Ctrl+O")
-        actionOpen.triggered.connect(self.openProject)
-        actionSave.setShortcut("Ctrl+S")
-        actionSave.triggered.connect(self.saveProject)
-
+    def functionConnector(self):
+        self.actionNew.setShortcut("Ctrl+N")
+        self.actionNew.triggered.connect(self.newProject)
+        self.actionOpen.setShortcut("Ctrl+O")
+        self.actionOpen.triggered.connect(self.openProject)
+        self.actionSave.setShortcut("Ctrl+S")
+        self.actionSave.triggered.connect(self.saveProject)
 
     def newProject(self):
         print("add new project")
