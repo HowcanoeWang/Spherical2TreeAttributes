@@ -38,6 +38,8 @@ Plant Fraction/
     |- classify_all_cylindircal   # Operate HSV classification for all images
 ```
 
+Currently, no executable app has been packed.
+
 ## 3. Individual Tree Attributes
 
 The GUI to mark key points (base and top of tree) in spherical image pairs. However, limited by schedule, the database hasn't been developed, all the calculating data needs to be pasted to the Excel file (`DataTemplate.xlsx`)
@@ -46,13 +48,13 @@ The GUI to mark key points (base and top of tree) in spherical image pairs. Howe
 
 Operation Steps:
 
-1. Run app.py scripts.
+1. Run **app.py** scripts or **app.exe** downloaded in [this link]( https://github.com/HowcanoeWang/Spherical2TreeAttributes/releases/tag/Beta0.01 ).
 2. Load spherical images (`OpenImg` button) at 1.6m and 2.6m for left panel and right panel respectively.
 3. Mark ground control points (click once on each image, e.g. plot center)
 4. Press (`Convert`) in **1.6m img**, and paste result to the first column in `Plot ` Sheet
 5. Press (`Convert`) in **2.6m img**, and paste result to the next column in `Plot ` Sheet
 6. Press `N` to start marking a new tree.
-7. Following this order to mark key points:
+7. Following this order to mark key points (Using windows **magnifier tools** if it is hard to see clearly):
    1. **1.6m img** tree **base**
    2. **2.6m img** tree The model for HSV classification
    3. (the horizonal red line will be locked at 1.3m)

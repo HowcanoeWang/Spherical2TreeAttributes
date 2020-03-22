@@ -4,13 +4,11 @@ import numpy as np
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
-
 from PIL import Image, ExifTags
-
-from scipy import ndimage
-from scipy.interpolate import interp1d
+#from scipy import ndimage
+#from scipy.interpolate import interp1d
+#from skimage.exposure import equalize_hist
 import imageio
-from skimage.exposure import equalize_hist
 
 from ba import in_tree_pixel
 
@@ -19,30 +17,47 @@ baf20 = in_tree_pixel(baf=20, img_width=5376)
 class MainWindow(QMainWindow):
     keyPressed = pyqtSignal(QEvent)
     vLocked = pyqtSignal(int)
-    
 
     def __init__(self, parent=None):
         super().__init__(parent)
         
         self.coordinate = '(x, y)'
-        
+
+        low = input("Please type the lower camera height in METER, default=1.6\n>>>")
+        try:
+            e1 = float(low)
+        except ValueError:
+            print('No valuable float numbers typed, used default 1.6m')
+            e1 = 1.6
+
+        high = input("Please type the higher camera height in METER, default=2.6\n>>>")
+        try:
+            e2 = float(high)
+        except ValueError:
+            print('No valuable float numbers typed, used default 2.6m')
+            e2 = 2.6
+
+        if e1 > e2:
+            e1, e2 = e2, e1
+
+        print(f'App launch! With low camera {e1}m and high camera {e2}m')
+        self.e1 = e1
+        self.e2 = e2
+
         self.setWindowTitle('IndividualDemo')
         self.setupUI()
         self.functionConnector()
         
         self.initPlot()
         self.initTree()
-        
+
         self.addTree = -1  # No add
-        
-        self.e1 = 1.6
-        self.e2 = 2.6
         
     def setupUI(self):
         self.mainWidget = QWidget()
         
-        self.panel16 = ImgPanel(self, 1.6)
-        self.panel26 = ImgPanel(self, 2.6)
+        self.panel1 = ImgPanel(self, self.e1)
+        self.panel2 = ImgPanel(self, self.e2)
         
         self.line = QFrame()
         self.line.setFrameShape(QFrame.VLine)
@@ -50,29 +65,29 @@ class MainWindow(QMainWindow):
         
         self.wl = QHBoxLayout(self.mainWidget)
         
-        self.wl.addWidget(self.panel16)
+        self.wl.addWidget(self.panel1)
         self.wl.addWidget(self.line)
-        self.wl.addWidget(self.panel26)
+        self.wl.addWidget(self.panel2)
         
         self.setCentralWidget(self.mainWidget)
     
     def functionConnector(self):
-        self.panel16.xScrollChanged.connect(self.panel26.setXScroll)
-        self.panel26.xScrollChanged.connect(self.panel16.setXScroll)
-        self.panel16.yScrollChanged.connect(self.panel26.setYScroll)
-        self.panel26.yScrollChanged.connect(self.panel16.setYScroll)
+        self.panel1.xScrollChanged.connect(self.panel2.setXScroll)
+        self.panel2.xScrollChanged.connect(self.panel1.setXScroll)
+        self.panel1.yScrollChanged.connect(self.panel2.setYScroll)
+        self.panel2.yScrollChanged.connect(self.panel1.setYScroll)
         
-        self.panel16.exifData.connect(self.updatePlot)
-        self.panel26.exifData.connect(self.updatePlot)
+        self.panel1.exifData.connect(self.updatePlot)
+        self.panel2.exifData.connect(self.updatePlot)
         
-        self.keyPressed.connect(self.panel16.imgShow.changeDirection)
-        self.keyPressed.connect(self.panel26.imgShow.changeDirection)
+        self.keyPressed.connect(self.panel1.imgShow.changeDirection)
+        self.keyPressed.connect(self.panel2.imgShow.changeDirection)
         
-        self.panel16.imgShow.emitPoint.connect(self.addTree)
-        self.panel26.imgShow.emitPoint.connect(self.addTree)
+        self.panel1.imgShow.emitPoint.connect(self.addTree)
+        self.panel2.imgShow.emitPoint.connect(self.addTree)
         
-        self.vLocked.connect(self.panel16.imgShow.changeVLock)
-        self.vLocked.connect(self.panel26.imgShow.changeVLock)
+        self.vLocked.connect(self.panel1.imgShow.changeVLock)
+        self.vLocked.connect(self.panel2.imgShow.changeVLock)
     
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_L:
@@ -85,7 +100,7 @@ class MainWindow(QMainWindow):
             self.addTree = 0
             self.initTree()
             self.changeDirection('NE')
-            self.showStep('[S1:1.6Base]')
+            self.showStep(f'[S1:{self.e1}Base]')
         else:
             self.keyPressed.emit(event)
             
@@ -100,7 +115,7 @@ class MainWindow(QMainWindow):
              'Altitude26':0.0, 'North26':0.0}
              
     def updatePlot(self, ht, data_list):
-        if ht == 1.6:
+        if ht == self.e1:
             self.plot['GCP16']      = data_list[0]
             self.plot['LatDeg16']   = data_list[1]
             self.plot['LatMin16']   = data_list[2]
@@ -125,10 +140,10 @@ class MainWindow(QMainWindow):
              
     def initTree(self):
         self.tree = {'16BX':0, '16BY':0, '16TX':0, '16TY':0,
-             '26BX':0, '26BY':0, '26TX':0, '26TY':0,
-             '16LX':0, '16LY':0, '16RX':0, '16RY':0,
-             '26LX':0, '26LY':0, '26RX':0, '26RY':0,
-             'Dist':0.0, 'DeltaH':0.0, 'HT':0.0, 'DBH':0.0, 'Gamma':0.0, 'Altitude':0.0}
+                     '26BX':0, '26BY':0, '26TX':0, '26TY':0,
+                     '16LX':0, '16LY':0, '16RX':0, '16RY':0,
+                     '26LX':0, '26LY':0, '26RX':0, '26RY':0,
+                     'Dist':0.0, 'DeltaH':0.0, 'HT':0.0, 'DBH':0.0, 'Gamma':0.0, 'Altitude':0.0}
              
     def addTree(self, x, y):
         # 0: Add 16Base
@@ -144,7 +159,7 @@ class MainWindow(QMainWindow):
             self.tree['16BX'] = x
             self.tree['16BY'] = y
             self.addTree += 1
-            self.showStep('[S2: 2.6Base]')
+            self.showStep(f'[S2: {self.e2}Base]')
         elif self.addTree == 1:
             self.tree['26BX'] = x
             self.tree['26BY'] = y
@@ -163,29 +178,29 @@ class MainWindow(QMainWindow):
             dbh16pos = self.getDBHPosition(self.e1, ix, iy)
             dbh26pos = self.getDBHPosition(self.e2, ix, iy)
             
-            self.panel16.imgShow.changeVLock(int(dbh16pos))
-            self.panel26.imgShow.changeVLock(int(dbh26pos))
+            self.panel1.imgShow.changeVLock(int(dbh16pos))
+            self.panel2.imgShow.changeVLock(int(dbh26pos))
             
             self.changeDirection('NW')
-            self.showStep('[S3:1.6Left]')
+            self.showStep(f'[S3:{self.e1}Left]')
             self.addTree += 1
         elif self.addTree == 2:
             self.tree['16LX'] = x
             self.tree['16LY'] = y
             self.changeDirection('NE')
-            self.showStep('[S4:1.6Right]')
+            self.showStep(f'[S4:{self.e1}Right]')
             self.addTree += 1
         elif self.addTree == 3:
             self.tree['16RX'] = x
             self.tree['16RY'] = y
             self.changeDirection('NW')
-            self.showStep('[S5:2.6Left]')
+            self.showStep(f'[S5:{self.e2}Left]')
             self.addTree += 1
         elif self.addTree == 4:
             self.tree['26LX'] = x
             self.tree['26LY'] = y
             self.changeDirection('NE')
-            self.showStep('[S6:2.6Right]')
+            self.showStep(f'[S6:{self.e2}Right]')
             self.addTree += 1
         elif self.addTree == 5:
             self.tree['26RX'] = x
@@ -196,15 +211,15 @@ class MainWindow(QMainWindow):
             dbh26 = self.getDBH(self.tree['26LX'], self.tree['26RX'], self.tree['Dist'])
             self.tree['DBH'] = (dbh16 + dbh26) / 2
             
-            self.panel16.imgShow.changeVLock(-1)
-            self.panel26.imgShow.changeVLock(-1)
-            self.showStep('[S7:1.6Top]')
+            self.panel1.imgShow.changeVLock(-1)
+            self.panel2.imgShow.changeVLock(-1)
+            self.showStep(f'[S7:{self.e1}Top]')
             
             self.addTree += 1
         elif self.addTree == 6:
             self.tree['16TX'] = x
             self.tree['16TY'] = y
-            self.showStep('[S8:2.6Top]')
+            self.showStep(f'[S8:{self.e2}Top]')
             self.addTree += 1
         elif self.addTree == 7:
             self.tree['26TX'] = x
@@ -218,7 +233,7 @@ class MainWindow(QMainWindow):
             self.tree['HT'] = (ht1 + ht2) / 2
             self.showStep('[Done&Paste]')
             
-            text = ''
+            text = f'{self.e1}\t{self.e2}\t'
             for key, value in self.tree.items():
                 text += f'{value}\t'
                 
@@ -228,16 +243,26 @@ class MainWindow(QMainWindow):
             
             print(text)
             self.addTree = -1
+            QMessageBox.information(self, 'Tree Info',
+                                    f'The info of this measured tree is:\n'
+                                    f"Distance\t{round(self.tree['Dist'],2)}\n"
+                                    f"ΔH      \t{round(self.tree['DeltaH'],2)}\n"
+                                    f"HT      \t{round(self.tree['HT'],2)}\n"
+                                    f"DBH     \t{round(self.tree['DBH'],2)}\n"
+                                    f"North   \t{round(self.tree['Gamma'],2)}\n"
+                                    f"Altitude\t{round(self.tree['Altitude'],2)}\n"
+                                    f"Please open Excel and Ctrl+V to paste the result\n"
+                                    f"Press 'N' to measure a new tree")
         
     def changeDirection(self, direct='NE'):
-        self.panel16.imgShow.corner = direct
-        self.panel26.imgShow.corner = direct
-        self.panel16.imgShow.update()
-        self.panel26.imgShow.update()
+        self.panel1.imgShow.corner = direct
+        self.panel2.imgShow.corner = direct
+        self.panel1.imgShow.update()
+        self.panel2.imgShow.update()
         
     def showStep(self, string):
-        self.panel16.updateProgress(string)
-        self.panel26.updateProgress(string)
+        self.panel1.updateProgress(string)
+        self.panel2.updateProgress(string)
         
     @staticmethod
     def interactBase(k1, b1, k2, b2):
@@ -430,7 +455,7 @@ class ImgPanel(QWidget):
         
     def convertImg(self):
         if self.imgShow.img_path is not None:
-            self.converter.set_param(self.imgShow.img_path,append=self.ht, 
+            self.converter.set_param(self.imgShow.img_path, append=self.ht,
                                      zenith=89, equalize=False, gcp=self.refX)          
             self.data_list[0] = self.refX
             self.exifData.emit(self.ht, self.data_list)   
@@ -491,6 +516,7 @@ class Converter(QThread):
         self.sigOut.emit('[10%..]')
         
         if self.mode == 'mercator':
+            '''
             if self.equalize:
                 img = equalize_hist(img)
                 self.sigOut.emit('[20%..]')
@@ -542,7 +568,8 @@ class Converter(QThread):
             file, ext = os.path.splitext(base)
             imageio.imwrite(f'converted_imgs/{file}_M{self.gcp}{ext}', img_out)
             
-            self.m2a = mecator_angle
+            self.m2a = mecator_angle'''
+            pass
             
         else:
             self.sigOut.emit('[40%..]')
