@@ -3,3 +3,8 @@ requirement.whl/*
 __pycache__/*
 textures/*
 *.mp4
+Individual Tree/*_imgs/*
+Individual Tree/__pycache__/*
+Individual Tree/build/*
+Individual Tree/dist/*
+Individual Tree/releases/*

@@ -9,6 +9,7 @@ from PIL import Image, ExifTags
 #from scipy.interpolate import interp1d
 #from skimage.exposure import equalize_hist
 import imageio
+import random
 
 from ba import in_tree_pixel
 
@@ -40,7 +41,49 @@ class MainWindow(QMainWindow):
         if e1 > e2:
             e1, e2 = e2, e1
 
-        print(f'App launch! With low camera {e1}m and high camera {e2}m')
+        sector_func = input('Use Sector Sampling ? [Y/N]\n>>>')
+        sector_intensity = None
+        sector_num = None
+        if sector_func in ['Y','y', 'yes']:
+            intense_loop = True
+            while intense_loop:
+                intensity_temp = input('[Sector] Please type the intensity '
+                                       '(the percentage of sector width, %, 0-100): ')
+                try:
+                    intensity_temp = float(intensity_temp)
+                except ValueError:
+                    print(f'[Sector] <{intensity_temp}> is not a valuable float number, please type again.')
+                    continue
+                if 0 <= intensity_temp and intensity_temp <= 100:
+                    sector_intensity = intensity_temp
+                    intense_loop = False
+                else:
+                    print(f'[Sector] <{intensity_temp}> should range from 0 to 100, please type again')
+                    continue
+
+            num_loop = True
+            while num_loop:
+                number_temp = input('[Sector] Please type the number of sector (0-10, int): ')
+                try:
+                    number_temp = int(number_temp)
+                except ValueError:
+                    print(f'[Sector] <{number_temp}> is not a valuable integer number, please type again.')
+                    continue
+                if 0 <= number_temp and number_temp * sector_intensity <= 50:
+                    sector_num = number_temp
+                    num_loop = False
+                else:
+                    print(f'[Sector] <{number_temp}>*intensity({sector_intensity}) '
+                          f'should range from 0 to 100, please type again')
+                    continue
+
+        if sector_intensity is None:
+            self.sector_range = None
+            print(f'App launch! With low camera {e1}m and high camera {e2}m')
+        else:
+            self.sector_range = self.getSectorStarts(sector_num, sector_intensity)
+            print(f'App launch! With low camera {e1}m and high camera {e2}m, '
+                  f'and {sector_num} Sector(s) of {sector_intensity}% width')
         self.e1 = e1
         self.e2 = e2
 
@@ -56,8 +99,8 @@ class MainWindow(QMainWindow):
     def setupUI(self):
         self.mainWidget = QWidget()
         
-        self.panel1 = ImgPanel(self, self.e1)
-        self.panel2 = ImgPanel(self, self.e2)
+        self.panel1 = ImgPanel(self, self.e1, self.sector_range)
+        self.panel2 = ImgPanel(self, self.e2, self.sector_range)
         
         self.line = QFrame()
         self.line.setFrameShape(QFrame.VLine)
@@ -296,13 +339,30 @@ class MainWindow(QMainWindow):
         dbh = 2 * sin_half_omiga * dist / (1 - sin_half_omiga) * 100
         return dbh
 
+    @staticmethod
+    def getSectorStarts(num, width):
+        total = 100
+        res = set()
+        sector_range = []
+        for i in range(num):
+            temp = random.uniform(0, total - width)
+            #print(f'[Sector{i}] -> First guess start point <{temp}> in total {list((idx, idx + width) for idx in res)}')
+            #print(f'[Sector{i}] -> Check if overlapped {[(temp >= idx and temp <= idx + width) or (temp + width >= idx and temp + width <= idx + width) for idx in res]}')
+            while any((temp >= idx and temp <= idx + width) or (temp + width >= idx and temp + width <= idx + width) for idx in res):
+                temp = random.uniform(0, total - width)
+                #print(f"[Sector{i}] -> repeat guess start point <{temp}> in total {list((idx, idx + width) for idx in res)}")
+            res.add(temp)
+        for idx in res:
+            sector_range.append((idx, idx + width))
+
+        return sector_range
         
 class ImgPanel(QWidget):
     xScrollChanged = pyqtSignal(int)
     yScrollChanged = pyqtSignal(int)
     exifData = pyqtSignal(float, list)
     
-    def __init__(self, parent=None, ht=1.6):
+    def __init__(self, parent=None, ht=1.6, sector_range=None):
         super().__init__(parent)
         self.refX = 0
         self.refY = 0
@@ -311,6 +371,7 @@ class ImgPanel(QWidget):
         self.scrollY = 0
         
         self.ht = ht
+        self.sector_range = sector_range
         
         self.converter = Converter(self)
         
@@ -456,7 +517,8 @@ class ImgPanel(QWidget):
     def convertImg(self):
         if self.imgShow.img_path is not None:
             self.converter.set_param(self.imgShow.img_path, append=self.ht,
-                                     zenith=89, equalize=False, gcp=self.refX)          
+                                     zenith=89, equalize=False, gcp=self.refX,
+                                     sector_range=self.sector_range)
             self.data_list[0] = self.refX
             self.exifData.emit(self.ht, self.data_list)   
             self.converter.start()
@@ -501,13 +563,14 @@ class Converter(QThread):
         self.equalize = False
         self.gcp = 0
         
-    def set_param(self, img_path, append=1.6, zenith=85, equalize=False, gcp=0, mode='direct'):
+    def set_param(self, img_path, append=1.6, zenith=85, equalize=False, gcp=0, mode='direct', sector_range=None):
         self.img_path = img_path
         self.append = append
         self.zenith = zenith
         self.equalize = equalize
         self.gcp = gcp
         self.mode = mode
+        self.sector_range = sector_range
     
     def run(self):
         '''Document see mercator.py'''
@@ -573,7 +636,25 @@ class Converter(QThread):
             
         else:
             self.sigOut.emit('[40%..]')
-            img_out = img_out = np.hstack((img[:,self.gcp:, :], img[:,0:self.gcp, :]))
+            img_out = np.hstack((img[:,self.gcp:, :], img[:,0:self.gcp, :]))
+            # add sector here
+            if self.sector_range is not None:
+                or1 = [197,90,17]
+                or2 = [244,177,131]
+                or3 = [247,203,172]
+                or4 = [257,229,213]
+                for sector in self.sector_range:
+                    st, ed = sector
+                    st = st * w / 100
+                    ed = ed * w / 100
+                    img_out[:, int(max(st-3, 0)), :] = or4
+                    img_out[:, int(max(st-2, 0)), :] = or3
+                    img_out[:, int(max(st-1, 0)), :] = or2
+                    img_out[:, int(max(st  , 0)), :] = or1
+                    img_out[:, int(min(ed+3, w-1)), :] = or4
+                    img_out[:, int(min(ed+2, w-1)), :] = or3
+                    img_out[:, int(min(ed+1, w-1)), :] = or2
+                    img_out[:, int(min(ed,   w-1)), :] = or1
             self.sigOut.emit('[60%..]')
             base = os.path.basename(self.img_path)
             file, ext = os.path.splitext(base)
