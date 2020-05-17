@@ -43,7 +43,7 @@ class MainWindow(QMainWindow):
 
         sector_func = input('Use Sector Sampling ? [Y/N]\n>>>')
         sector_intensity = None
-        sector_num = None
+        sector_num = 1
         if sector_func in ['Y','y', 'yes']:
             intense_loop = True
             while intense_loop:
@@ -61,6 +61,7 @@ class MainWindow(QMainWindow):
                     print(f'[Sector] <{intensity_temp}> should range from 0 to 100, please type again')
                     continue
 
+            """
             num_loop = True
             while num_loop:
                 number_temp = input('[Sector] Please type the number of sector (0-10, int): ')
@@ -76,7 +77,7 @@ class MainWindow(QMainWindow):
                     print(f'[Sector] <{number_temp}>*intensity({sector_intensity}) '
                           f'should range from 0 to 100, please type again')
                     continue
-
+            """
         if sector_intensity is None:
             self.sector_range = None
             print(f'App launch! With low camera {e1}m and high camera {e2}m')
@@ -342,6 +343,7 @@ class MainWindow(QMainWindow):
     @staticmethod
     def getSectorStarts(num, width):
         total = 100
+        """
         res = set()
         sector_range = []
         for i in range(num):
@@ -354,6 +356,11 @@ class MainWindow(QMainWindow):
             res.add(temp)
         for idx in res:
             sector_range.append((idx, idx + width))
+        """
+        st = random.uniform(0, total)
+        ed = (st + width) % total
+        
+        sector_range = [(st, ed)]
 
         return sector_range
         
